@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+  <meta name="apple-mobile-web-app-title" content="Sinke-Tracker"/>
+  <link rel="apple-touch-icon" href="icons/icon-180.png"/>
+  <link rel="manifest" href="manifest.json"/>
+  <title>Vipps, så skylder du meg!</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: #F5F5F7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    input, button { font-family: inherit; }
+    input[type=date] { appearance: none; -webkit-appearance: none; }
+
+    /* Screens */
+    .screen { display: none; min-height: 100vh; }
+    .screen.active { display: flex; flex-direction: column; }
+
+    /* Hero */
+    .hero {
+      background: linear-gradient(160deg, #FF5B24 0%, #D94810 100%);
+      padding: 56px 24px 40px;
+      color: #fff;
+      text-align: center;
+      border-radius: 0 0 36px 36px;
+    }
+    .hero-label { font-size: 13px; font-weight: 800; letter-spacing: 2px; opacity: .8; text-transform: uppercase; }
+    .hero-sub { font-size: 11px; opacity: .7; margin-top: 3px; letter-spacing: 1px; }
+    .hero-desc { font-size: 15px; opacity: .8; margin-top: 28px; }
+    .hero-total { font-size: 56px; font-weight: 900; letter-spacing: -2px; line-height: 1.05; margin-top: 6px; }
+    .hero-total span { font-size: 28px; font-weight: 700; }
+    .hero-count { font-size: 13px; opacity: .75; margin-top: 10px; }
+
+    /* List */
+    .list { padding: 24px 16px 120px; }
+    .empty { text-align: center; padding: 70px 20px; }
+    .empty-icon { font-size: 52px; }
+    .empty-title { font-size: 20px; font-weight: 800; color: #ccc; margin-top: 12px; }
+    .empty-sub { font-size: 14px; margin-top: 8px; color: #bbb; }
+
+    /* Card */
+    .card {
+      background: #fff;
+      border-radius: 22px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 2px 16px rgba(0,0,0,.07);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+      border-left: 5px solid #FF5B24;
+      transition: transform .1s;
+    }
+    .card:active { transform: scale(0.98); }
+    .card-emoji { font-size: 38px; flex-shrink: 0; }
+    .card-info { flex: 1; min-width: 0; }
+    .card-name { font-weight: 900; font-size: 17px; color: #111; }
+    .card-age { font-size: 12px; color: #aaa; margin-top: 3px; }
+    .card-rente { font-size: 11px; color: #FF5B24; font-weight: 700; margin-top: 4px; }
+    .card-amount { font-weight: 900; font-size: 24px; color: #FF5B24; flex-shrink: 0; }
+    .card-amount span { font-size: 14px; font-weight: 600; }
+
+    /* FAB */
+    .fab {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+      background: #FF5B24; color: #fff; border: none;
+      border-radius: 22px; padding: 18px 36px;
+      font-size: 17px; font-weight: 900; cursor: pointer;
+      box-shadow: 0 8px 28px rgba(255,91,36,.42);
+      display: flex; align-items: center; gap: 10px; white-space: nowrap;
+      transition: transform .1s;
+    }
+    .fab:active { transform: translateX(-50%) scale(0.96); }
+
+    /* Add screen */
+    .add-header {
+      background: #FF5B24;
+      padding: 52px 20px 28px;
+      color: #fff;
+    }
+    .back-btn {
+      background: rgba(255,255,255,.2); border: none; border-radius: 12px;
+      color: #fff; padding: 8px 16px; font-size: 14px; font-weight: 700;
+      cursor: pointer; margin-bottom: 20px; display: inline-block;
+    }
+    .add-title { font-size: 24px; font-weight: 900; }
+    .add-sub { font-size: 14px; opacity: .85; margin-top: 4px; }
+    .add-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; flex: 1; }
+    .field-label { font-size: 13px; font-weight: 700; color: #666; margin-bottom: 8px; }
+    .field-input {
+      width: 100%; padding: 14px 16px; border-radius: 14px;
+      border: 1.5px solid #e0e0e0; font-size: 16px; font-weight: 600;
+      color: #111; background: #fff; outline: none;
+    }
+    .field-input:focus { border-color: #FF5B24; }
+    .amount-wrap { position: relative; }
+    .amount-suffix {
+      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+      font-weight: 800; color: #999; font-size: 16px; pointer-events: none;
+    }
+    .toggle-row {
+      background: #fff; border-radius: 18px; padding: 18px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    }
+    .toggle-title { font-weight: 800; font-size: 15px; color: #111; }
+    .toggle-sub { font-size: 12px; color: #999; margin-top: 3px; }
+    .toggle {
+      width: 52px; height: 30px; border-radius: 15px; flex-shrink: 0;
+      cursor: pointer; background: #ccc; position: relative; transition: background .2s;
+      border: none; outline: none;
+    }
+    .toggle.on { background: #FF5B24; }
+    .toggle-knob {
+      width: 24px; height: 24px; border-radius: 50%; background: #fff;
+      position: absolute; top: 3px; left: 3px;
+      transition: left .2s; box-shadow: 0 1px 4px rgba(0,0,0,.25);
+    }
+    .toggle.on .toggle-knob { left: 25px; }
+    .save-btn {
+      margin-top: auto; padding: 18px; border-radius: 18px; border: none;
+      background: #ddd; color: #aaa; font-size: 16px; font-weight: 900;
+      cursor: default; transition: background .2s, box-shadow .2s;
+    }
+    .save-btn.ok {
+      background: #FF5B24; color: #fff; cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255,91,36,.35);
+    }
+
+    /* Detail screen */
+    .detail-header {
+      background: linear-gradient(160deg, #FF5B24 0%, #D94810 100%);
+      padding: 52px 20px 36px; color: #fff; text-align: center;
+      position: relative;
+    }
+    .detail-back {
+      position: absolute; left: 20px; top: 56px;
+      background: rgba(255,255,255,.2); border: none; border-radius: 12px;
+      color: #fff; padding: 8px 16px; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .detail-emoji { font-size: 64px; line-height: 1; }
+    .detail-name { font-size: 28px; font-weight: 900; margin-top: 12px; }
+    .detail-amount { font-size: 44px; font-weight: 900; letter-spacing: -1px; margin-top: 4px; }
+    .detail-age { font-size: 14px; opacity: .8; margin-top: 6px; }
+    .detail-rente-badge {
+      display: inline-block; margin-top: 10px;
+      background: rgba(255,255,255,.2); border-radius: 10px;
+      padding: 4px 14px; font-size: 13px; font-weight: 700;
+    }
+    .detail-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+    .action-btn {
+      padding: 17px; border-radius: 18px; font-size: 16px; font-weight: 800;
+      cursor: pointer; width: 100%; transition: opacity .15s; border: none;
+    }
+    .action-btn:active { opacity: .8; }
+
+    /* Purring overlay */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 5000;
+      display: flex; align-items: center; justify-content: center; padding: 20px;
+    }
+    .overlay-box {
+      background: #fff; border-radius: 26px; padding: 28px;
+      width: 100%; max-width: 420px; box-shadow: 0 12px 50px rgba(0,0,0,.22);
+    }
+    .overlay-title { font-weight: 900; font-size: 18px; margin-bottom: 16px; }
+    .purring-text {
+      background: #FFF0EB; border-radius: 14px; padding: 18px;
+      font-size: 15px; line-height: 1.65; color: #222; margin-bottom: 20px;
+      white-space: pre-wrap;
+    }
+    .copy-btn {
+      width: 100%; padding: 15px; border-radius: 14px; border: none;
+      background: #FF5B24; color: #fff; font-size: 15px; font-weight: 800;
+      cursor: pointer; margin-bottom: 10px; transition: background .2s;
+    }
+    .copy-btn.copied { background: #00C851; }
+    .close-btn {
+      width: 100%; padding: 14px; border-radius: 14px; border: none;
+      background: #f0f0f0; color: #555; font-size: 15px; font-weight: 700; cursor: pointer;
+    }
+
+    /* Confetti */
+    #confetti-container {
+      position: fixed; inset: 0; pointer-events: none; z-index: 9999; overflow: hidden;
+      display: none;
+    }
+    @keyframes kfall {
+      0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(540deg); opacity: 0; }
+    }
+
+    /* Celebration */
+    #celebration {
+      position: fixed; inset: 0; z-index: 9000;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+      pointer-events: none;
+    }
+    .celebration-box {
+      background: #fff; border-radius: 30px; padding: 36px; text-align: center;
+      box-shadow: 0 12px 60px rgba(0,0,0,.25); max-width: 320px;
+    }
+    .celebration-icon { font-size: 56px; }
+    .celebration-title { font-size: 21px; font-weight: 900; margin-top: 12px; color: #111; }
+    .celebration-text { font-size: 15px; color: #555; margin-top: 10px; line-height: 1.6; }
+
+    /* Toast */
+    #toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      background: #1a1a1a; color: #fff; padding: 13px 22px; border-radius: 16px;
+      font-size: 14px; font-weight: 600; z-index: 99999;
+      box-shadow: 0 4px 20px rgba(0,0,0,.25);
+      max-width: 320px; text-align: center; line-height: 1.5; white-space: pre-line;
+      display: none;
+    }
+
+    /* Loading */
+    .loading-screen {
+      min-height: 100vh; background: #F5F5F7;
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+    }
+    .loading-screen.active { display: flex; }
+  </style>
+</head>
+<body>
+
+<!-- HOME SCREEN -->
+<div id="screen-home" class="screen active" style="background:#F5F5F7">
+  <div class="hero">
+    <div class="hero-label">Vipps, så skylder du meg!</div>
+    <div class="hero-sub">THE ULTIMATE SINKE-TRACKER™</div>
+    <div class="hero-desc">Totalt utestående formue 💸</div>
+    <div class="hero-total"><span id="total-amount">0,00</span> <span>kr</span></div>
+    <div class="hero-count" id="hero-count">Ingen syndere registrert 🎉</div>
+  </div>
+  <div class="list" id="debt-list"></div>
+  <button class="fab" onclick="showScreen('add')">
+    <span style="font-size:22px;font-weight:900">+</span> Legg til synder
+  </button>
+</div>
+
+<!-- ADD SCREEN -->
+<div id="screen-add" class="screen" style="background:#F5F5F7">
+  <div class="add-header">
+    <button class="back-btn" onclick="showScreen('home')">← Tilbake</button>
+    <div class="add-title">Legg til synder 😈</div>
+    <div class="add-sub">Fyll inn skjemaet og kryss fingrene</div>
+  </div>
+  <div class="add-body">
+    <div>
+      <div class="field-label">Hvem skylder deg penger? 🤔</div>
+      <input id="add-name" class="field-input" type="text" placeholder="F.eks. Kristoffer, Silje..." oninput="validateAdd()"/>
+    </div>
+    <div>
+      <div class="field-label">Hvor mye? 💰</div>
+      <div class="amount-wrap">
+        <input id="add-amount" class="field-input" type="number" min="0" placeholder="0" style="padding-right:50px" oninput="validateAdd()"/>
+        <span class="amount-suffix">kr</span>
+      </div>
+    </div>
+    <div>
+      <div class="field-label">Siden når? 📅</div>
+      <input id="add-since" class="field-input" type="date" oninput="validateAdd()"/>
+    </div>
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-title">Sleng på 0,25% vennerente?</div>
+        <div class="toggle-sub">Aktiveres manuelt av deg — du bestemmer! 😈</div>
+      </div>
+      <button class="toggle" id="rente-toggle" onclick="toggleRente()">
+        <div class="toggle-knob"></div>
+      </button>
+    </div>
+    <button class="save-btn" id="save-btn" onclick="saveDebt()">
+      Registrer lån og kryss fingrene 🤞
+    </button>
+  </div>
+</div>
+
+<!-- DETAIL SCREEN -->
+<div id="screen-detail" class="screen" style="background:#F5F5F7">
+  <div class="detail-header">
+    <button class="detail-back" onclick="showScreen('home')">← Tilbake</button>
+    <div class="detail-emoji" id="detail-emoji">💸</div>
+    <div class="detail-name" id="detail-name"></div>
+    <div class="detail-amount" id="detail-amount"></div>
+    <div class="detail-age" id="detail-age"></div>
+    <div class="detail-rente-badge" id="detail-rente-badge" style="display:none">💸 Rentefelle aktivert</div>
+  </div>
+  <div class="detail-body">
+    <button class="action-btn" style="background:#fff;color:#111;border:2px solid #FF5B24" onclick="handlePurring()">
+      💬 Generer Purring
+    </button>
+    <button class="action-btn" id="rente-btn" style="display:none" onclick="applyRente()"></button>
+    <button class="action-btn" style="background:#00C851;color:#fff" onclick="deletePerson()">
+      ✅ Betalt / Slett
+    </button>
+    <button class="action-btn" style="background:#eee;color:#555" onclick="showScreen('home')">
+      Tilbake
+    </button>
+  </div>
+</div>
+
+<!-- LOADING SCREEN -->
+<div class="loading-screen" id="screen-loading">
+  <div style="font-size:48px">✍️</div>
+  <div style="font-weight:800;font-size:18px;color:#111">Inkasso-avdelingen skriver...</div>
+  <div style="font-size:13px;color:#aaa">dette kan ta et øyeblikk</div>
+</div>
+
+<!-- PURRING OVERLAY -->
+<div class="overlay" id="purring-overlay" style="display:none">
+  <div class="overlay-box">
+    <div class="overlay-title">📩 Din personlige purring</div>
+    <div class="purring-text" id="purring-text"></div>
+    <button class="copy-btn" id="copy-btn" onclick="copyPurring()">📋 Kopier tekst</button>
+    <button class="close-btn" onclick="closePurring()">Lukk</button>
+  </div>
+</div>
+
+<!-- CONFETTI -->
+<div id="confetti-container"></div>
+
+<!-- CELEBRATION -->
+<div id="celebration" style="display:none">
+  <div class="celebration-box">
+    <div class="celebration-icon">🎉</div>
+    <div class="celebration-title">Miraklenes tid er ikke forbi!</div>
+    <div class="celebration-text" id="celebration-text"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+  const STORAGE_KEY = 'sinke-tracker-debts';
+  const O = '#FF5B24';
+
+  // ── STATE ──
+  let debts = loadDebts();
+  let activeId = null;
+  let renteOn = false;
+  let toastTimer = null;
+
+  function loadDebts() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    const d1 = new Date(); d1.setDate(d1.getDate() - 47);
+    const d2 = new Date(); d2.setDate(d2.getDate() - 5);
+    return [
+      { id: 1, name: 'Kristoffer', amount: 350, since: d1.toISOString().slice(0,10), renter: true,  lastRente: null },
+      { id: 2, name: 'Silje',      amount: 80,  since: d2.toISOString().slice(0,10), renter: false, lastRente: null },
+    ];
+  }
+
+  function saveDebts() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(debts)); } catch {}
+  }
+
+  function todayISO() { return new Date().toISOString().slice(0, 10); }
+
+  function daysAgo(dateStr) {
+    return Math.max(0, Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000));
+  }
+
+  function ageLabel(days) {
+    if (days === 0) return 'Registrert i dag 🆕';
+    if (days === 1) return 'Skyldt i 1 dag';
+    if (days < 7)  return `Skyldt i ${days} dager`;
+    if (days < 14) return 'Skyldt i 1 uke 😒';
+    if (days < 30) return `Skyldt i ${Math.floor(days/7)} uker 😒`;
+    if (days < 60) return 'Skyldt i 1 måned 🐢';
+    if (days < 180) return `Skyldt i ${Math.floor(days/30)} måneder 🐢🐢`;
+    return `Skyldt i ${Math.floor(days/30)} måneder 💀💸`;
+  }
+
+  function moodEmoji(days) {
+    if (days === 0) return '🤝';
+    if (days < 7)  return '😅';
+    if (days < 14) return '😬';
+    if (days < 30) return '🥶';
+    if (days < 60) return '🐢';
+    return '💀';
+  }
+
+  function getPurring(p) {
+    const days = daysAgo(p.since);
+    const kr = p.amount.toFixed(2);
+    if (days < 7)  return `Hei ${p.name}! 👋 Bare en liten påminnelse om at du skylder meg ${kr} kr. Ingen stress — men... Vipps? ☕`;
+    if (days < 30) return `Heisann ${p.name} 👀 Det har nå gått ${days} dager siden du lånte ${kr} kr. Kontoen min lengter. En liten Vipps hadde hjulpet masse! 💸`;
+    if (days < 60) return `Kjære ${p.name}. Vi er nå inne i uke ${Math.floor(days/7)} av gjeldshistoria vår. Du skylder meg ${kr} kr. Renten er på vei opp, og vennskapet på vei ned. Vipps? 💀`;
+    return `📋 INKASSOVARSEL NR. ${Math.floor(days/30)}\nFra: Inkasso-avdelingen (meg)\nTil: ${p.name}\nSak: ${kr} kr skyldt i ${days} dager.\n\nVi ber deg vennligst betale ØYEBLIKKELIG. Vipps nå, eller møt advokaten (meg, igjen). 💸⚖️`;
+  }
+
+  // ── SCREENS ──
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-loading').classList.remove('active');
+    if (name === 'loading') {
+      document.getElementById('screen-loading').classList.add('active');
+    } else {
+      document.getElementById('screen-' + name).classList.add('active');
+    }
+    if (name === 'home') renderHome();
+    if (name === 'add')  initAdd();
+  }
+
+  // ── HOME ──
+  function renderHome() {
+    const total = debts.reduce((s, d) => s + d.amount, 0);
+    document.getElementById('total-amount').textContent = total.toFixed(2).replace('.', ',');
+    document.getElementById('hero-count').textContent = debts.length === 0
+      ? 'Ingen syndere registrert 🎉'
+      : `${debts.length} synder${debts.length !== 1 ? 'e' : ''} venter på oppgjørets dag`;
+
+    const list = document.getElementById('debt-list');
+    if (debts.length === 0) {
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">🎊</div>
+          <div class="empty-title">Ingen skylder deg noe!</div>
+          <div class="empty-sub">Enten er vennene dine ærlige,<br>eller har du ingen som låner penger 😇</div>
+        </div>`;
+      return;
+    }
+    list.innerHTML = debts.map(d => {
+      const days = daysAgo(d.since);
+      const em = moodEmoji(days);
+      return `
+        <div class="card" onclick="openDetail(${d.id})">
+          <div class="card-emoji">${em}</div>
+          <div class="card-info">
+            <div class="card-name">${d.name}</div>
+            <div class="card-age">${ageLabel(days)}</div>
+            ${d.renter ? `<div class="card-rente">💸 +0,25% rente klar til aktivering!</div>` : ''}
+          </div>
+          <div class="card-amount">${Math.round(d.amount)}<span> kr</span></div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── ADD ──
+  function initAdd() {
+    document.getElementById('add-name').value = '';
+    document.getElementById('add-amount').value = '';
+    document.getElementById('add-since').value = todayISO();
+    renteOn = false;
+    document.getElementById('rente-toggle').classList.remove('on');
+    validateAdd();
+    setTimeout(() => document.getElementById('add-name').focus(), 100);
+  }
+
+  function toggleRente() {
+    renteOn = !renteOn;
+    document.getElementById('rente-toggle').classList.toggle('on', renteOn);
+  }
+
+  function validateAdd() {
+    const name = document.getElementById('add-name').value.trim();
+    const amount = parseFloat(document.getElementById('add-amount').value);
+    const ok = name !== '' && !isNaN(amount) && amount > 0;
+    const btn = document.getElementById('save-btn');
+    btn.classList.toggle('ok', ok);
+  }
+
+  function saveDebt() {
+    const name = document.getElementById('add-name').value.trim();
+    const amount = parseFloat(document.getElementById('add-amount').value);
+    const since = document.getElementById('add-since').value;
+    if (!name || isNaN(amount) || amount <= 0) return;
+    debts.push({ id: Date.now(), name, amount, since, renter: renteOn, lastRente: null });
+    saveDebts();
+    showScreen('home');
+    showToast(`${name} lagt til som synder 😈`);
+  }
+
+  // ── DETAIL ──
+  function openDetail(id) {
+    activeId = id;
+    renderDetail();
+    showScreen('detail');
+  }
+
+  function renderDetail() {
+    const p = debts.find(d => d.id === activeId);
+    if (!p) return;
+    const days = daysAgo(p.since);
+    document.getElementById('detail-emoji').textContent = moodEmoji(days);
+    document.getElementById('detail-name').textContent = p.name;
+    document.getElementById('detail-amount').textContent = p.amount.toFixed(2) + ' kr';
+    document.getElementById('detail-age').textContent = ageLabel(days);
+
+    const badge = document.getElementById('detail-rente-badge');
+    badge.style.display = p.renter ? 'inline-block' : 'none';
+
+    const renteBtn = document.getElementById('rente-btn');
+    if (p.renter) {
+      const canRente = !p.lastRente || daysAgo(p.lastRente) >= 1;
+      renteBtn.style.display = 'block';
+      renteBtn.style.background = canRente ? '#FF3B30' : '#eee';
+      renteBtn.style.color = canRente ? '#fff' : '#aaa';
+      renteBtn.style.cursor = canRente ? 'pointer' : 'default';
+      renteBtn.textContent = canRente ? '💥 AKTIVER RENTEFELLE (0,25%)' : '⏳ Rente allerede aktivert i dag';
+      renteBtn.disabled = !canRente;
+    } else {
+      renteBtn.style.display = 'none';
+    }
+  }
+
+  function applyRente() {
+    const idx = debts.findIndex(d => d.id === activeId);
+    if (idx === -1) return;
+    const ny = +(debts[idx].amount * 1.0025).toFixed(2);
+    debts[idx] = { ...debts[idx], amount: ny, lastRente: todayISO() };
+    saveDebts();
+    renderDetail();
+    showToast(`💥 KA-CHING!\nRente lagt til!\nNy sum: ${ny.toFixed(2)} kr`);
+  }
+
+  function deletePerson() {
+    const p = debts.find(d => d.id === activeId);
+    if (!p) return;
+    debts = debts.filter(d => d.id !== activeId);
+    saveDebts();
+    showScreen('home');
+    showCelebration(p.name, p.amount.toFixed(2));
+    shootConfetti();
+  }
+
+  // ── PURRING ──
+  function handlePurring() {
+    const p = debts.find(d => d.id === activeId);
+    if (!p) return;
+    const text = getPurring(p);
+    document.getElementById('purring-text').textContent = text;
+    document.getElementById('copy-btn').textContent = '📋 Kopier tekst';
+    document.getElementById('copy-btn').classList.remove('copied');
+    document.getElementById('purring-overlay').style.display = 'flex';
+  }
+
+  function copyPurring() {
+    const text = document.getElementById('purring-text').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = '✅ Kopiert!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Kopier tekst'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function closePurring() {
+    document.getElementById('purring-overlay').style.display = 'none';
+  }
+
+  // ── TOAST ──
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.style.display = 'none'; }, 3200);
+  }
+
+  // ── CONFETTI ──
+  function shootConfetti() {
+    const container = document.getElementById('confetti-container');
+    container.style.display = 'block';
+    container.innerHTML = '';
+    const colors = ['#FF5B24','#FFD700','#00C9A7','#FF6B6B','#845EF7','#fff'];
+    for (let i = 0; i < 70; i++) {
+      const el = document.createElement('div');
+      const size = 7 + Math.random() * 9;
+      const dur = 1.8 + Math.random() * 1.2;
+      const delay = Math.random() * 1.2;
+      el.style.cssText = `
+        position:absolute;
+        left:${Math.random()*100}%;
+        top:0;
+        width:${size}px;
+        height:${size}px;
+        background:${colors[i % colors.length]};
+        border-radius:${Math.random() > 0.5 ? '50%' : '3px'};
+        animation:kfall ${dur}s ${delay}s ease-in forwards;
+      `;
+      container.appendChild(el);
+    }
+    setTimeout(() => { container.style.display = 'none'; container.innerHTML = ''; }, 4000);
+  }
+
+  // ── CELEBRATION ──
+  function showCelebration(name, amount) {
+    document.getElementById('celebration-text').innerHTML =
+      `<strong style="color:#FF5B24">${name}</strong> har gjort opp for seg!<br>Du er nå <strong>${amount} kr</strong> rikere 💸`;
+    const el = document.getElementById('celebration');
+    el.style.display = 'flex';
+    setTimeout(() => { el.style.display = 'none'; }, 4000);
+  }
+
+  // ── INIT ──
+  renderHome();
+</script>
+</body>
+</html>
